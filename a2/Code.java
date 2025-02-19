@@ -32,13 +32,16 @@ public class Code extends JFrame implements GLEventListener {
     private Matrix4f vMat = new Matrix4f();
     private Matrix4f mMat = new Matrix4f();
     private Matrix4f mvMat = new Matrix4f();
+    private Quaternionf rotationX = new Quaternionf().rotateX((float) Math.toRadians(90.0));
+    private Quaternionf rotationY = new Quaternionf().rotateY((float) Math.toRadians(75.0));
     private int mvLoc, pLoc;
     private float aspect;
 
     public Code() {
         setTitle("CSC155 - Assignment 2");
         setSize(600, 600);
-        setLocation(200, 200);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         myCanvas = new GLCanvas();
         myCanvas.addGLEventListener(this);
         this.add(myCanvas);
@@ -62,7 +65,6 @@ public class Code extends JFrame implements GLEventListener {
         vMat.translation(-cameraX, -cameraY, -cameraZ);
 
         // draw cube
-
         mMat.translation(cubeLocX, cubeLocY, cubeLocZ);
 
         mvMat.identity().mul(vMat).mul(mMat);
@@ -78,11 +80,28 @@ public class Code extends JFrame implements GLEventListener {
         gl.glDepthFunc(GL_LEQUAL);
 
         gl.glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // draw other
+        mMat.translation(cubeLocX + 2.5f, cubeLocY + 3.0f, cubeLocZ);
+        mMat.rotate(rotationX);
+        mMat.rotate(rotationY);
+
+        mvMat.identity().mul(vMat).mul(mMat);
+
+        gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+        gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(0);
+
+        gl.glEnable(GL_DEPTH_TEST);
+        gl.glDepthFunc(GL_LEQUAL);
+
+        gl.glDrawArrays(GL_TRIANGLES, 0, 42);
     }
 
     @Override
     public void init(GLAutoDrawable drawable) {
-        GL4 gl = (GL4) GLContext.getCurrentGL();
         renderingProgram = Utils.createShaderProgram("a2/vertShader.glsl", "a2/fragShader.glsl");
         setupVertices();
         cameraX = 0.0f; cameraY = 0.0f; cameraZ = 8.0f;
@@ -92,14 +111,19 @@ public class Code extends JFrame implements GLEventListener {
     private void setupVertices() {
         GL4 gl = (GL4) GLContext.getCurrentGL();
         Cube cube = new Cube();
+        CrayzeeCube crayzeeCube = new CrayzeeCube();
 
         gl.glGenVertexArrays(vao.length, vao, 0);
         gl.glBindVertexArray(vao[0]);
         gl.glGenBuffers(vbo.length, vbo, 0);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-        FloatBuffer cubeBuf = Buffers.newDirectFloatBuffer(cube.getVertices());
-        gl.glBufferData(GL_ARRAY_BUFFER, cubeBuf.limit() * 4, cubeBuf, GL_STATIC_DRAW);
+        FloatBuffer objBuf = Buffers.newDirectFloatBuffer(cube.getVertices());
+        gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+        objBuf = Buffers.newDirectFloatBuffer(crayzeeCube.getVertices());
+        gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
 
     }
 

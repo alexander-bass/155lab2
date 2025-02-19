@@ -1,8 +1,6 @@
 package a2;
 
-import java.io.*;
 import java.nio.*;
-import javax.swing.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,7 +9,6 @@ import java.util.Vector;
 
 import static com.jogamp.opengl.GL4.*;
 import com.jogamp.opengl.*;
-import com.jogamp.opengl.awt.GLCanvas;
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.texture.*;
 import com.jogamp.common.nio.Buffers;
@@ -134,6 +131,7 @@ public class Utils
 			while (sc.hasNext())
 			{	lines.addElement(sc.nextLine());
 			}
+			sc.close();
 			program = new String[lines.size()];
 			for (int i = 0; i < lines.size(); i++)
 			{	program[i] = (String) lines.elementAt(i) + "\n";
