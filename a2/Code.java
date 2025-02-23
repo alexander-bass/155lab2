@@ -18,7 +18,7 @@ import com.jogamp.opengl.util.Animator;
 
 import org.joml.*;
 
-public class Code extends JFrame implements GLEventListener, KeyListener {
+public class Code extends JFrame implements GLEventListener {
     // game initialization variables
     private GLCanvas myCanvas;
     private int renderingProgram;
@@ -28,7 +28,7 @@ public class Code extends JFrame implements GLEventListener, KeyListener {
     private float cameraX, cameraY, cameraZ;
     private float cubeLocX, cubeLocY, cubeLocZ;
     private int brickTexture;
-
+    private InputManager inputManager;
 
 
     // display function variables
@@ -37,27 +37,40 @@ public class Code extends JFrame implements GLEventListener, KeyListener {
     private Matrix4f vMat = new Matrix4f();
     private Matrix4f mMat = new Matrix4f();
     private Matrix4f mvMat = new Matrix4f();
-    // private Quaternionf rotationX = new Quaternionf().rotateX((float) Math.toRadians(90.0));
-    // private Quaternionf rotationY = new Quaternionf().rotateY((float) Math.toRadians(75.0));
     private int mvLoc, pLoc;
     private float aspect;
+    private long prevDisplayTime, currDisplayTime;
+    private float deltaTime;
 
     public Code() {
+        // setup window
         setTitle("CSC155 - Assignment 2");
         setSize(600, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        // setup GLCanvas
         myCanvas = new GLCanvas();
         myCanvas.addGLEventListener(this);
-        myCanvas.addKeyListener(this);
+        inputManager = new InputManager(this);
+        myCanvas.addKeyListener(inputManager);
+
         this.add(myCanvas);
         this.setVisible(true);
+
+        prevDisplayTime = System.nanoTime();
         Animator animtr = new Animator(myCanvas);
         animtr.start();
     }
 
     @Override
     public void display(GLAutoDrawable drawable) {
+        currDisplayTime = System.nanoTime();
+        deltaTime = (currDisplayTime - prevDisplayTime) / 1e9f;
+        prevDisplayTime = currDisplayTime;
+        
+        handleInput(deltaTime);
+        
         GL4 gl = (GL4) GLContext.getCurrentGL();
         gl.glClear(GL_COLOR_BUFFER_BIT);
         gl.glClear(GL_DEPTH_BUFFER_BIT);
@@ -93,26 +106,6 @@ public class Code extends JFrame implements GLEventListener, KeyListener {
         gl.glDepthFunc(GL_LEQUAL);
 
         gl.glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // draw other
-        /*
-        mMat.translation(cubeLocX + 2.5f, cubeLocY + 3.0f, cubeLocZ);
-        mMat.rotate(rotationX);
-        mMat.rotate(rotationY);
-
-        mvMat.identity().mul(vMat).mul(mMat);
-
-        gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
-
-        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-        gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
-        gl.glEnableVertexAttribArray(0);
-
-        gl.glEnable(GL_DEPTH_TEST);
-        gl.glDepthFunc(GL_LEQUAL);
-
-        gl.glDrawArrays(GL_TRIANGLES, 0, 42);
-        */
     }
 
     @Override
@@ -134,7 +127,6 @@ public class Code extends JFrame implements GLEventListener, KeyListener {
     private void setupVertices() {
         GL4 gl = (GL4) GLContext.getCurrentGL();
         Cube cube = new Cube();
-        // CrayzeeCube crayzeeCube = new CrayzeeCube();
 
         gl.glGenVertexArrays(vao.length, vao, 0);
         gl.glBindVertexArray(vao[0]);
@@ -147,12 +139,25 @@ public class Code extends JFrame implements GLEventListener, KeyListener {
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
         FloatBuffer texBuf = Buffers.newDirectFloatBuffer(cube.getTexCoords());
         gl.glBufferData(GL_ARRAY_BUFFER, texBuf.limit() * 4, texBuf, GL_STATIC_DRAW);
-        /*
-        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-        objBuf = Buffers.newDirectFloatBuffer(crayzeeCube.getVertices());
-        gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
-        */
+    }
 
+
+    private void handleInput(float time) {
+        float yaw = 0, pitch = 0;
+        if (inputManager.isKeyPressed(KeyEvent.VK_LEFT)) yaw += 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_RIGHT)) yaw -= 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_UP)) pitch += 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_DOWN)) pitch -= 1;
+        cam.rotate(yaw, pitch, time);
+
+        float forward = 0, right = 0, up = 0;
+        if (inputManager.isKeyPressed(KeyEvent.VK_W)) forward += 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_S)) forward -= 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_D)) right += 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_A)) right -= 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_Q)) up += 1;
+        if (inputManager.isKeyPressed(KeyEvent.VK_E)) up -= 1;
+        cam.move(forward, right, up, time);
     }
 
     public static void main(String[] args) { new Code(); }
@@ -161,46 +166,5 @@ public class Code extends JFrame implements GLEventListener, KeyListener {
     @Override
     public void dispose(GLAutoDrawable arg0) {}
 
-    @Override
-    public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_Q:
-                cam.MoveUp(0.1f);
-                break;
-            case KeyEvent.VK_E:
-                cam.MoveUp(-0.1f);
-                break;
-            case KeyEvent.VK_W:
-                cam.MoveForward(0.1f);
-                break;
-            case KeyEvent.VK_S:
-                cam.MoveForward(-0.1f);
-                break;
-            case KeyEvent.VK_D:
-                cam.MoveRight(0.1f);
-                break;
-            case KeyEvent.VK_A:
-                cam.MoveRight(-0.1f);
-                break;
-            case KeyEvent.VK_LEFT:
-                cam.Yaw(0.1f);
-                break;
-            case KeyEvent.VK_RIGHT:
-                cam.Yaw(-0.1f);
-                break;
-            case KeyEvent.VK_UP:
-                cam.Pitch(-0.1f);
-                break;
-            case KeyEvent.VK_DOWN:
-                cam.Pitch(0.1f);
-                break;
-        }
-    }
-
-    @Override
-    public void keyReleased(KeyEvent arg0) {}
-
-    @Override
-    public void keyTyped(KeyEvent e) {}
 
 }

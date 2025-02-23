@@ -1,39 +1,38 @@
 package a2;
 
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 
 public class Camera {
     private Vector3f u, v, n;
     private Vector3f location;
-    private Matrix4f view, viewT, viewR;
+    
+    private Matrix4f view, viewR, viewT;
+
+    // variables for speed of movement/rotation
+    private float moveSpeed, yawSens, pitchSens;
+
+    // temps
+    private Vector3f tempForward, tempUp, tempRight;
 
     public Camera() {
-        Vector3f defaultLocation = new Vector3f(0.0f, 0.0f, 1.0f);
-        Vector3f defaultU = new Vector3f(1.0f, 0.0f, 0.0f);
-        Vector3f defaultV = new Vector3f(0.0f, 1.0f, 0.0f);
-        Vector3f defaultN = new Vector3f(0.0f, 0.0f, -1.0f);
-
-        location = new Vector3f(defaultLocation);
-        u = new Vector3f(defaultU);
-        v = new Vector3f(defaultV);
-        n = new Vector3f(defaultN);
+        location = new Vector3f();
+        
+        u = new Vector3f(1, 0, 0);
+        v = new Vector3f(0, 1, 0);
+        n = new Vector3f(0, 0, -1);
 
         view = new Matrix4f();
-        viewT = new Matrix4f();
         viewR = new Matrix4f();
-    }
+        viewT = new Matrix4f();
 
-    public void setLocation(Vector3f newLocation) { location.set(newLocation); }
-    public void setU(Vector3f newU) { location.set(newU); }
-    public void setV(Vector3f newV) { location.set(newV); }
-    public void setN(Vector3f newN) { location.set(newN); }
-    public Vector3f getLocation() { return new Vector3f(location); }
-    public Vector3f getU() { return new Vector3f(u); }
-    public Vector3f getV() { return new Vector3f(v); }
-    public Vector3f getN() { return new Vector3f(n); }
+        tempForward = new Vector3f();
+        tempUp = new Vector3f();
+        tempRight = new Vector3f();
+
+        moveSpeed = 2.0f; yawSens = 2.0f; pitchSens = 2.0f;
+    }
 
     public Matrix4f getViewMatrix() { 
         viewT.set(1.0f, 0.0f, 0.0f, 0.0f,
@@ -51,64 +50,46 @@ public class Camera {
 		view.mul(viewT);
 
 		return(view);
-    }
-    
-    public void MoveForward(float velocity) {
-		Vector3f fwd = this.getN();
-		Vector3f loc = this.getLocation();
-		Vector3f newLocation = loc.add(fwd.mul(velocity));
-		this.setLocation(newLocation);
-	}
-
-    public void MoveUp(float velocity) {
-		Vector3f up = this.getV();
-        Vector3f loc = this.getLocation();
-        Vector3f newLocation = loc.add(up.mul(velocity));
-		this.setLocation(newLocation);
-	}
-
-    public void MoveRight(float velocity) {
-		Vector3f right = this.getU();
-		Vector3f loc = this.getLocation();
-		Vector3f newLocation = loc.add(right.mul(velocity));
-		this.setLocation(newLocation);
-	}
-
-    public void Yaw(float angularVelocity) {
-        Quaternionf quat = new Quaternionf().rotateAxis(angularVelocity, 0, 1, 0);
-        viewR.rotate(quat);
-        /* 
-		Vector3f right = this.getU();
-		Vector3f up = this.getV();
-		Vector3f fwd = this.getN();
-		right.rotateAxis(angularVelocity, up.x(), up.y(), up.z());
-		fwd.rotateAxis(angularVelocity, up.x(), up.y(), up.z());
-		this.setU(right);
-		this.setN(fwd);
-        */
-	}
-
-    public void Pitch(float angularVelocity) {
-		Vector3f right = this.getU();
-		Vector3f up = this.getV();
-		Vector3f fwd = this.getN();
-		up.rotateAxis(angularVelocity, right.x(), right.y(), right.z());
-		fwd.rotateAxis(angularVelocity, right.x(), right.y(), right.z());
-		this.setV(up);
-		this.setN(fwd);
-	}
-
-    // Alternate way to do??? idk looking at raylib maybe test later
-
-    public Matrix4f getViewMatrixTesting() { 
-        return view.lookAt(location, new Vector3f(0, 0, 0), v);
+        
     }
 
-    public void MoveUpTesting(float velocity) {
-		Vector3f up = this.getV();
-        Vector3f loc = this.getLocation();
-        Vector3f newLocation = loc.add(up.mul(velocity));
-		this.setLocation(newLocation);
-	}
-    
+    public void move(float forwardInput, float rightInput, float upInput, float deltaTime) {
+        float speed = moveSpeed * deltaTime;
+
+        tempForward.set(n).mul(forwardInput * speed);
+        tempUp.set(v).mul(upInput * speed);
+        tempRight.set(u).mul(rightInput * speed);
+
+        location.add(tempForward)
+            .add(tempUp)
+            .add(tempRight);
+    }
+
+    public void rotate(float yawInput, float pitchInput, float deltaTime) {
+        float yawSpeed = yawSens * deltaTime;
+        float pitchSpeed = pitchSens * deltaTime;
+
+        tempRight.set(u).rotateAxis(yawInput * yawSpeed, v.x, v.y, v.z);
+        tempForward.set(n).rotateAxis(yawInput * yawSpeed, v.x, v.y, v.z);
+
+        u.set(tempRight);
+        n.set(tempForward);
+
+        tempUp.set(v).rotateAxis(pitchInput * pitchSpeed, u.x, u.y, u.z);
+        tempForward.set(n).rotateAxis(pitchInput * pitchSpeed, u.x, u.y, u.z);
+
+        v.set(tempUp);
+        n.set(tempForward);
+    }
+
+
+    public void setLocation(Vector3f newLocation) { location.set(newLocation); }
+    public void setMoveSpeed(float speed ) { moveSpeed = speed; }
+    public void setYawSens(float sens ) { yawSens = sens; }
+    public void setPitchSens(float sens ) { pitchSens = sens; }
+    public Vector3f getLocation() { return new Vector3f(location); }
+    public float getMoveSpeed() { return moveSpeed; }
+    public float getYawSens() { return yawSens; }
+    public float getPitchSens() { return pitchSens; }
+
 }
