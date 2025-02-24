@@ -23,10 +23,11 @@ public class Code extends JFrame implements GLEventListener {
     private GLCanvas myCanvas;
     private int renderingProgram;
     private int vao[] = new int[1];
-    private int vbo[] = new int[2];
+    private int vbo[] = new int[4];
     private Camera cam;
     private float cameraX, cameraY, cameraZ;
     private float cubeLocX, cubeLocY, cubeLocZ;
+    private float pyrLocX, pyrLocY, pyrLocZ;
     private int brickTexture;
     private InputManager inputManager;
 
@@ -71,6 +72,11 @@ public class Code extends JFrame implements GLEventListener {
         
         handleInput(deltaTime);
         
+        renderScene();
+
+    }
+
+    public void renderScene() {
         GL4 gl = (GL4) GLContext.getCurrentGL();
         gl.glClear(GL_COLOR_BUFFER_BIT);
         gl.glClear(GL_DEPTH_BUFFER_BIT);
@@ -106,6 +112,30 @@ public class Code extends JFrame implements GLEventListener {
         gl.glDepthFunc(GL_LEQUAL);
 
         gl.glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // draw manual object
+        mMat.translation(pyrLocX, pyrLocY, pyrLocZ);
+
+        mvMat.identity().mul(vMat).mul(mMat);
+
+        gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
+        gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+        gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(0);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+        gl.glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(1);
+
+        gl.glActiveTexture(GL_TEXTURE0);
+        gl.glBindTexture(GL_TEXTURE_2D, brickTexture);
+
+        gl.glEnable(GL_DEPTH_TEST);
+        gl.glDepthFunc(GL_LEQUAL);
+
+        gl.glDrawArrays(GL_TRIANGLES, 0, 42);
     }
 
     @Override
@@ -119,6 +149,7 @@ public class Code extends JFrame implements GLEventListener {
         cam = new Camera();
         cameraX = 0.0f; cameraY = 0.0f; cameraZ = 8.0f;
         cubeLocX = 0.0f; cubeLocY = -2.0f; cubeLocZ = 0.0f;
+        pyrLocX = 0.0f; pyrLocY = 2.0f; pyrLocZ = 0.0f;
 
         cam.setLocation(new Vector3f(cameraX, cameraY, cameraZ));
         brickTexture = Utils.loadTexture("assets/textures/brick1.jpg");
@@ -127,6 +158,7 @@ public class Code extends JFrame implements GLEventListener {
     private void setupVertices() {
         GL4 gl = (GL4) GLContext.getCurrentGL();
         Cube cube = new Cube();
+        CrayzeeCube pyr = new CrayzeeCube();
 
         gl.glGenVertexArrays(vao.length, vao, 0);
         gl.glBindVertexArray(vao[0]);
@@ -138,6 +170,14 @@ public class Code extends JFrame implements GLEventListener {
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
         FloatBuffer texBuf = Buffers.newDirectFloatBuffer(cube.getTexCoords());
+        gl.glBufferData(GL_ARRAY_BUFFER, texBuf.limit() * 4, texBuf, GL_STATIC_DRAW);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+        objBuf = Buffers.newDirectFloatBuffer(pyr.getVertices());
+        gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+        texBuf = Buffers.newDirectFloatBuffer(pyr.getTexCoords());
         gl.glBufferData(GL_ARRAY_BUFFER, texBuf.limit() * 4, texBuf, GL_STATIC_DRAW);
     }
 

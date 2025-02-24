@@ -50,14 +50,13 @@ public class Camera {
 		view.mul(viewT);
 
 		return(view);
-        
     }
 
     public void move(float forwardInput, float rightInput, float upInput, float deltaTime) {
         float speed = moveSpeed * deltaTime;
 
         tempForward.set(n).mul(forwardInput * speed);
-        tempUp.set(v).mul(upInput * speed);
+        tempUp.set(0, 1, 0).mul(upInput * speed);
         tempRight.set(u).mul(rightInput * speed);
 
         location.add(tempForward)
