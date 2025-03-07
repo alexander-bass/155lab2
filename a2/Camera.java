@@ -16,6 +16,9 @@ public class Camera {
     // temps
     private Vector3f tempForward, tempUp, tempRight;
 
+    // variables for scaling speed of movement with time
+    private float speed, yawSpeed, pitchSpeed;
+
     public Camera() {
         location = new Vector3f();
         
@@ -53,7 +56,7 @@ public class Camera {
     }
 
     public void move(float forwardInput, float rightInput, float upInput, float deltaTime) {
-        float speed = moveSpeed * deltaTime;
+        speed = moveSpeed * deltaTime;
 
         tempForward.set(n).mul(forwardInput * speed);
         tempUp.set(0, 1, 0).mul(upInput * speed);
@@ -65,8 +68,8 @@ public class Camera {
     }
 
     public void rotate(float yawInput, float pitchInput, float deltaTime) {
-        float yawSpeed = yawSens * deltaTime;
-        float pitchSpeed = pitchSens * deltaTime;
+        yawSpeed = yawSens * deltaTime;
+        pitchSpeed = pitchSens * deltaTime;
 
         tempRight.set(u).rotateAxis(yawInput * yawSpeed, v.x, v.y, v.z);
         tempForward.set(n).rotateAxis(yawInput * yawSpeed, v.x, v.y, v.z);
@@ -81,7 +84,18 @@ public class Camera {
         n.set(tempForward);
     }
 
-
+    public void lookAt(float x, float y, float z) {
+		n.set((new Vector3f(x-location.x(), y-location.y(), z-location.z())).normalize());
+		Vector3f copyN = new Vector3f(n);
+		if ((n.equals(0,1,0)) || (n.equals(0,-1,0)))
+			u = new Vector3f(1f,0f,0f);
+		else
+			u = (new Vector3f(copyN.cross(0f,1f,0f))).normalize();
+		Vector3f copyU = new Vector3f(u);
+		v = (new Vector3f(copyU.cross(n))).normalize();
+	}
+    
+    
     public void setLocation(Vector3f newLocation) { location.set(newLocation); }
     public void setMoveSpeed(float speed ) { moveSpeed = speed; }
     public void setYawSens(float sens ) { yawSens = sens; }

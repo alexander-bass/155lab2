@@ -8,9 +8,12 @@ import static com.jogamp.opengl.GL.GL_DEPTH_BUFFER_BIT;
 import static com.jogamp.opengl.GL.GL_DEPTH_TEST;
 import static com.jogamp.opengl.GL.GL_FLOAT;
 import static com.jogamp.opengl.GL.GL_LEQUAL;
+import static com.jogamp.opengl.GL.GL_REPEAT;
 import static com.jogamp.opengl.GL.GL_STATIC_DRAW;
 import static com.jogamp.opengl.GL.GL_TEXTURE0;
 import static com.jogamp.opengl.GL.GL_TEXTURE_2D;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_S;
+import static com.jogamp.opengl.GL.GL_TEXTURE_WRAP_T;
 import static com.jogamp.opengl.GL.GL_TRIANGLES;
 
 import java.nio.FloatBuffer;
@@ -32,15 +35,15 @@ public class Code extends JFrame implements GLEventListener {
     private GLCanvas myCanvas;
     private int renderingProgram;
     private int vao[] = new int[1];
-    private int vbo[] = new int[25];
+    private int vbo[] = new int[27];
     private Camera cam;
-    private float cameraX, cameraY, cameraZ;
+    private Vector3f cameraInitial;
     private Vector3f croissantInitialLocation = new Vector3f(0, 0, 0);
     private Vector3f ratInitialLocation = new Vector3f(0, 0, 1.35f);
-    private Vector3f frontInitial, backInitial, rightInitial, leftInitial, topInitial, bottomInitial;
+    private Vector3f frontInitial, backInitial, rightInitial, leftInitial, topInitial, bottomInitial, modelNewLocation;
     private InputManager inputManager;
 
-    private int ratTexture, criossantTexture, garbageTexture;
+    private int ratTexture, criossantTexture, garbageTexture, brickTexture, windowTexture;
     private int numObjVertices;
     private ImportedModel ratModel, croissantModel;
 
@@ -51,7 +54,7 @@ public class Code extends JFrame implements GLEventListener {
     private Matrix4f vMat = new Matrix4f();
     private Matrix4f mMat = new Matrix4f();
     private Matrix4f mvMat = new Matrix4f();
-    private int mvLoc, pLoc;
+    private int mvLoc, pLoc, tfLoc;
     private float aspect;
     private long prevDisplayTime, currDisplayTime;
     private float posDelta, negDelta, deltaTime;
@@ -62,6 +65,9 @@ public class Code extends JFrame implements GLEventListener {
     private Quaternionf rotateZ = new Quaternionf();
     private Quaternionf rotateCroissant = new Quaternionf().rotateAxis((float) Math.toRadians(90.0f), 0, 1, 1);
     private Quaternionf modelOrbit = new Quaternionf();
+
+    // camera control input variables
+    private float yaw, pitch, forward, up, right;
 
 
     public Code() {
@@ -106,12 +112,42 @@ public class Code extends JFrame implements GLEventListener {
 
         mvLoc = gl.glGetUniformLocation(renderingProgram, "mv_matrix");
         pLoc = gl.glGetUniformLocation(renderingProgram, "p_matrix");
+        tfLoc = gl.glGetUniformLocation(renderingProgram, "tileCount");
 
         vMat = cam.getViewMatrix();
 
         angle += (1.0f * deltaTime);
         posDelta = ((float) Math.sin(angle) + 1) / 2.0f;
         negDelta = ((float) Math.sin(-angle) - 1) / 2.0f;
+
+        // draw ground plane
+        mMat.identity();
+        mMat.translation(new Vector3f(0, -3, 0));
+        mMat.scale(5f);
+
+        mvMat.identity().mul(vMat).mul(mMat);
+        
+        gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
+        gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 5);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+        gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(0);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+        gl.glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(1);
+
+        gl.glActiveTexture(GL_TEXTURE0);
+        gl.glBindTexture(GL_TEXTURE_2D, brickTexture);
+        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        gl.glEnable(GL_DEPTH_TEST);
+        gl.glDepthFunc(GL_LEQUAL);
+
+        gl.glDrawArrays(GL_TRIANGLES, 0, 18);
 
         // draw top
         rotateFaces.rotationX((float) Math.toRadians(-90.0f));
@@ -127,6 +163,7 @@ public class Code extends JFrame implements GLEventListener {
         
         gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
         gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
         gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -159,6 +196,7 @@ public class Code extends JFrame implements GLEventListener {
 
         gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
         gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
         gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -188,6 +226,7 @@ public class Code extends JFrame implements GLEventListener {
 
         gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
         gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[6]);
         gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -220,6 +259,7 @@ public class Code extends JFrame implements GLEventListener {
 
         gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
         gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[8]);
         gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -252,6 +292,7 @@ public class Code extends JFrame implements GLEventListener {
 
         gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
         gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[10]);
         gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -284,6 +325,7 @@ public class Code extends JFrame implements GLEventListener {
 
         gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
         gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[12]);
         gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -306,7 +348,7 @@ public class Code extends JFrame implements GLEventListener {
 		mMat.translate(ratInitialLocation);
 
         modelOrbit.rotationY(1.5f * deltaTime);
-        Vector3f modelNewLocation = ratInitialLocation.rotate(modelOrbit);
+        modelNewLocation = ratInitialLocation.rotate(modelOrbit);
         mMat.translate(modelNewLocation);
         rotateY.rotationTo(new Vector3f(0, 0, -1), modelNewLocation);
         mMat.rotate(rotateY);
@@ -318,6 +360,7 @@ public class Code extends JFrame implements GLEventListener {
 
 		gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
 		gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
 		gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[14]);
 		gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -338,6 +381,8 @@ public class Code extends JFrame implements GLEventListener {
         mMat.identity();
 		mMat.translate(croissantInitialLocation);
         mMat.rotate(rotateCroissant);
+        rotateY.rotationY(angle);
+        mMat.rotate(rotateY);
         mMat.scale(2.5f);
 
 		mvMat.identity();
@@ -346,6 +391,7 @@ public class Code extends JFrame implements GLEventListener {
 
 		gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
 		gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 1);
 
 		gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[17]);
 		gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
@@ -362,6 +408,72 @@ public class Code extends JFrame implements GLEventListener {
 		gl.glDepthFunc(GL_LEQUAL);
 		gl.glDrawArrays(GL_TRIANGLES, 0, croissantModel.getNumVertices());
 
+        
+        // draw wall plane 1
+        mMat.identity();
+        mMat.translation(new Vector3f(0, 2, -5));
+        rotateX.rotationX((float)Math.toRadians(90.0f));
+        mMat.rotate(rotateX);
+        mMat.scale(5f);
+
+        mvMat.identity().mul(vMat).mul(mMat);
+        
+        gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
+        gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 5);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[20]);
+        gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(0);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[21]);
+        gl.glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(1);
+
+        gl.glActiveTexture(GL_TEXTURE0);
+        gl.glBindTexture(GL_TEXTURE_2D, windowTexture);
+        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        gl.glEnable(GL_DEPTH_TEST);
+        gl.glDepthFunc(GL_LEQUAL);
+
+        gl.glDrawArrays(GL_TRIANGLES, 0, 18);
+
+        
+        // draw wall plane 2
+        mMat.identity();
+        mMat.translation(new Vector3f(-5, 2, 0));
+        rotateX.rotationX((float)Math.toRadians(90.0f));
+        rotateZ.rotationZ((float)Math.toRadians(90.0f));
+        mMat.rotate(rotateX);
+        mMat.rotate(rotateZ);
+        mMat.scale(5f);
+
+        mvMat.identity().mul(vMat).mul(mMat);
+        
+        gl.glUniformMatrix4fv(mvLoc, 1, false, mvMat.get(vals));
+        gl.glUniformMatrix4fv(pLoc, 1, false, pMat.get(vals));
+        gl.glUniform1i(tfLoc, 5);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[22]);
+        gl.glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(0);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[23]);
+        gl.glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0);
+        gl.glEnableVertexAttribArray(1);
+
+        gl.glActiveTexture(GL_TEXTURE0);
+        gl.glBindTexture(GL_TEXTURE_2D, windowTexture);
+        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        gl.glEnable(GL_DEPTH_TEST);
+        gl.glDepthFunc(GL_LEQUAL);
+
+        gl.glDrawArrays(GL_TRIANGLES, 0, 18);
+        
     }
 
     @Override
@@ -375,23 +487,27 @@ public class Code extends JFrame implements GLEventListener {
 
         setupVertices();
         cam = new Camera();
-        cameraX = 0.0f; cameraY = 0.0f; cameraZ = 6.0f;
+        cameraInitial = new Vector3f(4.5f, -2, 4.5f);
 
-        frontInitial = new Vector3f(0, 0, 0); backInitial = new Vector3f(0, 0, 0);
-        leftInitial = new Vector3f(0, 0, 0); rightInitial = new Vector3f(0, 0, 0);
-        topInitial = new Vector3f(0, 0, 0); bottomInitial = new Vector3f(0, 0, 0);
+        frontInitial = new Vector3f(0, 0, 0.001f); backInitial = new Vector3f(0, 0, -0.001f);
+        leftInitial = new Vector3f(0.001f, 0, 0); rightInitial = new Vector3f(-0.001f, 0, 0);
+        topInitial = new Vector3f(0, 0.001f, 0); bottomInitial = new Vector3f(0, -0.001f, 0);
 
-
-        cam.setLocation(new Vector3f(cameraX, cameraY, cameraZ));
+        cam.setLocation(cameraInitial);
+        cam.lookAt(0, 0, 0);
         
         garbageTexture = Utils.loadTexture("assets/textures/evgeny-karchevsky-k1tUxfs8JYY-unsplash.jpg");
         ratTexture = Utils.loadTexture("assets/textures/street_rat_diff_1k.jpg");
         criossantTexture = Utils.loadTexture("assets/textures/croissant_diff_1k.jpg");
+        brickTexture = Utils.loadTexture("assets/textures/brick1.jpg");
+        windowTexture = Utils.loadTexture("assets/textures/marek-jedrzejewski-9A0qAWYIVBI-unsplash.jpg");
     }
 
     private void setupVertices() {
         GL4 gl = (GL4) GLContext.getCurrentGL();
-        Cube cube = new Cube();
+        Plane groundPlane = new Plane();
+        Plane wallPlane1 = new Plane();
+        Plane wallPlane2 = new Plane();
         ManualObject top = new ManualObject();
         ManualObject bottom = new ManualObject();
         ManualObject front = new ManualObject();
@@ -400,13 +516,13 @@ public class Code extends JFrame implements GLEventListener {
         gl.glBindVertexArray(vao[0]);
         gl.glGenBuffers(vbo.length, vbo, 0);
  
-        // setup cube vert & tex
+        // setup ground plane vert & tex
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-        FloatBuffer objBuf = Buffers.newDirectFloatBuffer(cube.getVertices());
+        FloatBuffer objBuf = Buffers.newDirectFloatBuffer(groundPlane.getVertices());
         gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
 
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-        FloatBuffer texBuf = Buffers.newDirectFloatBuffer(cube.getTexCoords());
+        FloatBuffer texBuf = Buffers.newDirectFloatBuffer(groundPlane.getTexCoords());
         gl.glBufferData(GL_ARRAY_BUFFER, texBuf.limit() * 4, texBuf, GL_STATIC_DRAW);
         
         // setup top vert & tex
@@ -518,7 +634,6 @@ public class Code extends JFrame implements GLEventListener {
             nvalues[i*3+2] = (float) (normals[i]).z();
         }
 
-
         // setup rat model vert tex & norms
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[14]);
         objBuf = Buffers.newDirectFloatBuffer(pvalues);
@@ -531,19 +646,37 @@ public class Code extends JFrame implements GLEventListener {
         gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[16]);
         normBuf = Buffers.newDirectFloatBuffer(nvalues);
         gl.glBufferData(GL_ARRAY_BUFFER, normBuf.limit() * 4, normBuf, GL_STATIC_DRAW);
+
+        // setup wall plane 1 vert and tex
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[20]);
+        objBuf = Buffers.newDirectFloatBuffer(wallPlane1.getVertices());
+        gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[21]);
+        texBuf = Buffers.newDirectFloatBuffer(wallPlane1.getTexCoords());
+        gl.glBufferData(GL_ARRAY_BUFFER, texBuf.limit() * 4, texBuf, GL_STATIC_DRAW);
+
+        // setup wall plane 2 vert and tex
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[22]);
+        objBuf = Buffers.newDirectFloatBuffer(wallPlane2.getVertices());
+        gl.glBufferData(GL_ARRAY_BUFFER, objBuf.limit() * 4, objBuf, GL_STATIC_DRAW);
+
+        gl.glBindBuffer(GL_ARRAY_BUFFER, vbo[23]);
+        texBuf = Buffers.newDirectFloatBuffer(wallPlane2.getTexCoords());
+        gl.glBufferData(GL_ARRAY_BUFFER, texBuf.limit() * 4, texBuf, GL_STATIC_DRAW);
         
     }
 
 
     private void handleInput(float time) {
-        float yaw = 0, pitch = 0;
+        yaw = 0; pitch = 0;
         if (inputManager.isKeyPressed(KeyEvent.VK_LEFT)) yaw += 1;
         if (inputManager.isKeyPressed(KeyEvent.VK_RIGHT)) yaw -= 1;
         if (inputManager.isKeyPressed(KeyEvent.VK_UP)) pitch += 1;
         if (inputManager.isKeyPressed(KeyEvent.VK_DOWN)) pitch -= 1;
         cam.rotate(yaw, pitch, time);
 
-        float forward = 0, right = 0, up = 0;
+        forward = 0; right = 0; up = 0;
         if (inputManager.isKeyPressed(KeyEvent.VK_W)) forward += 1;
         if (inputManager.isKeyPressed(KeyEvent.VK_S)) forward -= 1;
         if (inputManager.isKeyPressed(KeyEvent.VK_D)) right += 1;
