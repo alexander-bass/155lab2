@@ -3,6 +3,7 @@ package a2;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+// Simple camera that can move around a scene using manipulation of u, v, and n vectors
 
 public class Camera {
     private Vector3f u, v, n;
@@ -22,6 +23,7 @@ public class Camera {
     public Camera() {
         location = new Vector3f();
         
+        // point down neg z axis
         u = new Vector3f(1, 0, 0);
         v = new Vector3f(0, 1, 0);
         n = new Vector3f(0, 0, -1);
@@ -37,6 +39,7 @@ public class Camera {
         moveSpeed = 2.0f; yawSens = 2.0f; pitchSens = 2.0f;
     }
 
+    // build the view matrix by multiplying translation and rotation matrices
     public Matrix4f getViewMatrix() { 
         viewT.set(1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f, 0.0f,
@@ -55,11 +58,12 @@ public class Camera {
 		return(view);
     }
 
+    // moves the camera along it's u, v, and n vectors depending on input from the user
     public void move(float forwardInput, float rightInput, float upInput, float deltaTime) {
-        speed = moveSpeed * deltaTime;
+        speed = moveSpeed * deltaTime;  // scale with deltaTime, time between displays
 
         tempForward.set(n).mul(forwardInput * speed);
-        tempUp.set(0, 1, 0).mul(upInput * speed);
+        tempUp.set(v).mul(upInput * speed);
         tempRight.set(u).mul(rightInput * speed);
 
         location.add(tempForward)
@@ -67,16 +71,20 @@ public class Camera {
             .add(tempRight);
     }
 
+    // rotate the camera around its v or u axis, depending on input from the user
     public void rotate(float yawInput, float pitchInput, float deltaTime) {
-        yawSpeed = yawSens * deltaTime;
-        pitchSpeed = pitchSens * deltaTime;
+        yawSpeed = yawSens * deltaTime; // scale with deltaTime
+        pitchSpeed = pitchSens * deltaTime; // scale with deltaTime
 
+        // rotate using euler angles
+        // yaw first
         tempRight.set(u).rotateAxis(yawInput * yawSpeed, v.x, v.y, v.z);
         tempForward.set(n).rotateAxis(yawInput * yawSpeed, v.x, v.y, v.z);
 
         u.set(tempRight);
         n.set(tempForward);
 
+        // then pitch
         tempUp.set(v).rotateAxis(pitchInput * pitchSpeed, u.x, u.y, u.z);
         tempForward.set(n).rotateAxis(pitchInput * pitchSpeed, u.x, u.y, u.z);
 
@@ -84,6 +92,7 @@ public class Camera {
         n.set(tempForward);
     }
 
+    // change the camera's orientation by looking at a specific point
     public void lookAt(float x, float y, float z) {
 		n.set((new Vector3f(x-location.x(), y-location.y(), z-location.z())).normalize());
 		Vector3f copyN = new Vector3f(n);
@@ -95,7 +104,7 @@ public class Camera {
 		v = (new Vector3f(copyU.cross(n))).normalize();
 	}
     
-    
+    // gets and sets
     public void setLocation(Vector3f newLocation) { location.set(newLocation); }
     public void setMoveSpeed(float speed ) { moveSpeed = speed; }
     public void setYawSens(float sens ) { yawSens = sens; }

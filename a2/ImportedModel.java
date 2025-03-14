@@ -9,6 +9,8 @@ import java.io.File;
 import java.util.ArrayList;
 import org.joml.*;
 
+// ImportedModel.java from textbook
+
 public class ImportedModel
 {
 	private Vector3f[] vertices;

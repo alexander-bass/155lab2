@@ -7,6 +7,9 @@ out vec2 tc;
 uniform mat4 mv_matrix;
 uniform mat4 p_matrix;
 uniform int tileCount;
+uniform int useTexture;
+uniform int axisColor;
+
 layout (binding = 0) uniform sampler2D samp;
 
 void main(void) {
